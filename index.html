@@ -1,0 +1,2502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UniCustom: Unified Visual Conditioning for Multi-Reference Image Generation</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:      #ffffff;
+      --surface: #f7f8fa;
+      --surface2: #eef0f4;
+      --border:  #e2e5eb;
+      --accent:  #3b5bdb;
+      --accent2: #7c3aed;
+      --accent3: #0d9488;
+      --text:    #111827;
+      --muted:   #6b7280;
+      --muted2:  #9ca3af;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 400;
+      line-height: 1.75;
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; justify-content: center; align-items: center;
+      gap: 0.25rem; padding: 0.75rem 2rem;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav a {
+      color: var(--muted); text-decoration: none;
+      font-size: 0.82rem; font-weight: 500;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 0.35rem 0.85rem; border-radius: 6px;
+      transition: all 0.2s;
+    }
+    nav a:hover { color: var(--accent); background: rgba(59,91,219,0.06); }
+
+    /* HERO */
+    .hero {
+      max-width: 1040px; margin: 0 auto;
+      padding: 5.5rem 2rem 3rem; text-align: center;
+    }
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 4vw, 3.15rem);
+      line-height: 1.18; color: var(--text); margin-bottom: 1.75rem;
+      animation: fadeUp 0.5s ease both;
+    }
+    h1 em { font-style: italic; color: var(--accent); }
+    .authors {
+      font-size: 1.05rem; color: var(--muted);
+      max-width: 100%;
+      margin: 0 auto 0.6rem;
+      text-align: center;
+      animation: fadeUp 0.5s 0.1s ease both;
+    }
+    .authors strong { color: var(--text); font-weight: 500; }
+    .affil {
+      font-size: 0.92rem; color: var(--muted2);
+      max-width: 100%;
+      margin: 0 auto 0.45rem;
+      text-align: center;
+      animation: fadeUp 0.5s 0.15s ease both;
+    }
+    .author-notes {
+      font-size: 0.82rem;
+      color: var(--muted2);
+      max-width: 100%;
+      margin: 0.1rem auto 0;
+      text-align: center;
+      animation: fadeUp 0.5s 0.18s ease both;
+    }
+    .author-notes + .author-notes { margin-top: 0.15rem; margin-bottom: 2rem; }
+
+    /* BUTTONS */
+    .btn-row {
+      display: flex; flex-wrap: wrap; gap: 0.6rem;
+      justify-content: center;
+      animation: fadeUp 0.5s 0.2s ease both;
+      margin-bottom: 3rem;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      padding: 0.55rem 1.25rem; border-radius: 8px;
+      font-size: 0.86rem; font-weight: 500;
+      text-decoration: none; transition: all 0.18s;
+      cursor: pointer; border: none; font-family: inherit;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #2f4bbf; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,91,219,0.28); }
+    .btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+    .btn-icon { width: 16px; height: 16px; object-fit: contain; display: block; }
+    .btn-primary .btn-icon { filter: brightness(0) invert(1); }
+
+    /* GALLERY */
+    .gallery-section {
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 0 0 3.5rem;
+      animation: fadeUp 0.5s 0.3s ease both;
+    }
+    .case-gallery-row {
+      --case-output-w: 180px;
+      --case-media-h: 180px;
+      --input-tile-w: calc(var(--case-output-w) / 2);
+      --case-gap: 1rem;
+      --marquee-distance: 0px;
+      width: 100%;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    .case-gallery-row:last-child { margin-bottom: 0; }
+    .case-track {
+      display: flex;
+      width: max-content;
+      will-change: transform;
+    }
+    .case-gallery-row:hover .case-track { will-change: auto; }
+    .case-track-clone {
+      position: absolute;
+      top: 0;
+      left: var(--marquee-distance);
+    }
+    .case-gallery-row.scroll-right .case-track-clone {
+      left: calc(-1 * var(--marquee-distance));
+      right: auto;
+    }
+    .case-card {
+      flex: 0 0 auto;
+      margin-right: var(--case-gap);
+      overflow: visible;
+      background: transparent;
+      position: relative;
+    }
+    .case-card.one-col { width: calc(var(--input-tile-w) + var(--case-output-w)); }
+    .case-card.two-col { width: calc(var(--case-output-w) * 2); }
+    .case-media {
+      width: 100%;
+      height: var(--case-media-h);
+      display: flex;
+      align-items: stretch;
+      overflow: hidden;
+      position: relative;
+    }
+    .case-inputs {
+      height: 100%;
+      display: grid;
+      grid-template-rows: repeat(var(--input-rows), minmax(0, 1fr));
+      flex: 0 0 auto;
+    }
+    .case-inputs.one-col {
+      width: var(--input-tile-w);
+      grid-template-columns: var(--input-tile-w);
+    }
+    .case-inputs.two-col {
+      width: var(--case-output-w);
+      grid-template-columns: repeat(2, var(--input-tile-w));
+    }
+    .case-output {
+      width: var(--case-output-w);
+      height: 100%;
+      flex: 0 0 var(--case-output-w);
+    }
+    .case-img {
+      position: relative;
+      overflow: hidden;
+      background: transparent;
+    }
+    .case-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.22s ease, width 0.24s ease, height 0.24s ease, top 0.24s ease, left 0.24s ease, bottom 0.24s ease;
+    }
+    .input-tile img {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+    .case-output:hover img { transform: scale(1.055); }
+    .input-tile:hover {
+      overflow: visible;
+      z-index: 30;
+    }
+    .input-tile:hover img {
+      object-fit: cover;
+      box-shadow: none;
+      z-index: 30;
+    }
+    .input-tile.needs-wide:hover img {
+      left: 0;
+      top: 0;
+      width: var(--hover-w);
+      height: 100%;
+    }
+    .input-tile.needs-tall:hover img {
+      left: 0;
+      width: 100%;
+      height: var(--hover-h);
+    }
+    .input-tile.needs-tall.input-top:hover img { top: 0; }
+    .input-tile.needs-tall.input-middle:hover img {
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .input-tile.needs-tall.input-bottom:hover img {
+      top: auto;
+      bottom: 0;
+    }
+    .picture-label {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0.18rem 0.35rem;
+      background: rgba(17,24,39,0.58);
+      color: #fff;
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.04em;
+      pointer-events: none;
+      z-index: 2;
+      transition: left 0.24s ease, right 0.24s ease, bottom 0.24s ease, width 0.24s ease, transform 0.24s ease;
+    }
+    .input-tile:hover .picture-label { z-index: 31; }
+    .input-tile.needs-wide:hover .picture-label {
+      width: var(--hover-w);
+      right: auto;
+      bottom: 0;
+    }
+    .input-tile.needs-tall:hover .picture-label {
+      width: 100%;
+      right: 0;
+      bottom: calc((var(--hover-h) - 100%) / -2);
+    }
+    .input-tile.needs-tall.input-top:hover .picture-label { bottom: calc(100% - var(--hover-h)); }
+    .input-tile.needs-tall.input-bottom:hover .picture-label { bottom: 0; }
+    .case-instruction {
+      width: 100%;
+      padding-top: 0.55rem;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.42;
+      max-width: 100%;
+      margin: 0;
+    }
+
+    /* DIVIDER */
+    hr.divider { border: none; border-top: 1px solid var(--border); max-width: 1040px; margin: 0 auto; }
+
+    /* SECTIONS */
+    section { max-width: 960px; margin: 0 auto; padding: 4.5rem 2rem; }
+    .section-label {
+      font-size: 1.1rem; letter-spacing: 0.13em;
+      text-transform: uppercase; color: var(--accent);
+      font-weight: 700; margin-bottom: 0.7rem;
+    }
+    h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+      line-height: 1.22; margin-bottom: 1.25rem; color: var(--text);
+    }
+    p { color: var(--muted); margin-bottom: 1.1rem; max-width: 720px; }
+
+    /* ABSTRACT */
+    .abstract-card {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 14px; padding: 2.25rem;
+      border-left: 3px solid var(--accent);
+    }
+    .abstract-figure {
+      float: right;
+      width: min(38%, 320px);
+      margin: 0.25rem 0 1rem 1.5rem;
+    }
+    .abstract-figure img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .abstract-figure .fig-caption { margin-top: 0.55rem; }
+    .abstract-card p { max-width: 100%; font-size: 0.96rem; line-height: 1.85; color: #374151; text-align: justify; }
+    .abstract-card p:last-child { margin-bottom: 0; }
+
+    /* FIGURES */
+    .paper-figure {
+      width: 100%; background: transparent;
+      border-radius: 14px;
+      margin-top: 1.75rem;
+      padding: 0;
+      overflow: hidden;
+    }
+    .architecture-figure {
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .paper-figure img { width:100%; height:auto; display:block; object-fit:contain; border-radius:10px; }
+    .training-figure { border-radius: 0; }
+    .training-figure img { border-radius: 0; }
+    .fig-caption {
+      max-width: 100%;
+      margin: 0.85rem auto 0;
+      font-size: 0.82rem;
+      color: var(--muted2);
+      text-align: left;
+      font-style: italic;
+    }
+    .fig-caption strong { color: var(--text); }
+    .architecture-caption {
+      width: 80%;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #method > p { max-width: 100%; }
+    #results > p { max-width: 100%; }
+    #citation > p { max-width: 100%; }
+    #citation .citation-block {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    /* TRAINING STAGES */
+    .stages { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
+    .stage-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; }
+    .stage-num { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--accent); font-weight: 500; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+    .stage-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text); }
+    .stage-tasks { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+    .stage-tasks li { font-size: 0.82rem; color: var(--muted); padding-left: 1.1rem; position: relative; line-height: 1.5; }
+    .stage-tasks li::before { content: '→'; position: absolute; left: 0; color: var(--accent); }
+    .stage-note { margin-top: auto; padding-top: 0.75rem; font-size: 0.78rem; color: var(--muted2); max-width: 100%; margin-bottom: 0; }
+
+    /* RESULTS TABLE */
+    .results-wrap { margin-top: 1.25rem; overflow-x: auto; border-radius: 0; border: 0; border-top: 2px solid var(--text); border-bottom: 2px solid var(--text); }
+    .mico-results-wrap {
+      width: 75%;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    thead tr { background: transparent; }
+    thead { border-top: 1.5px solid var(--text); border-bottom: 1.5px solid var(--text); }
+    th { padding: 0.85rem 1rem; text-align: left; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.04em; color: var(--text); border-bottom: 1px solid var(--text); white-space: nowrap; }
+    td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+    tr:last-child td { border-bottom: none; }
+    td.model-name { font-family: 'DM Sans', sans-serif; color: var(--text); font-size: 0.84rem; white-space: nowrap; }
+    tr.ours td { background: rgba(59,91,219,0.04); }
+    tr.ours td.model-name { color: var(--accent); font-weight: 600; }
+    .best { color: var(--text); font-weight: 600; }
+    .table-group-header td { background: var(--surface2); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); padding: 0.45rem 1rem; font-family: 'DM Sans', sans-serif; font-weight: 700; text-align: center; }
+    .table-group-header.closed td { background: #e7f1f9; }
+    .table-group-header.open td { background: #e9e7f8; }
+    .table-note { max-width: 100%; margin: 0.55rem auto 0; font-size: 0.75rem; color: var(--muted2); line-height: 1.5; text-align: center; }
+    .omni-table th:not(.model-col),
+    .omni-table td:not(.model-name) { text-align: center; }
+    .omni-table th { padding: 0.72rem 0.38rem; font-size: 0.76rem; letter-spacing: 0.02em; }
+    .omni-table td { padding: 0.62rem 0.38rem; font-size: 0.74rem; }
+    .omni-table td.model-name { padding-left: 0.7rem; padding-right: 0.55rem; font-size: 0.78rem; }
+    .omni-table .model-col { white-space: nowrap; }
+    .omni-table thead tr:first-child th {
+      text-align: center;
+      vertical-align: bottom;
+      border-bottom: none;
+      position: relative;
+      padding-bottom: 0.6rem;
+    }
+    .omni-table thead tr:first-child th[rowspan] {
+      vertical-align: middle;
+      padding-bottom: 0.85rem;
+      border-bottom: none;
+    }
+    .omni-table thead tr:first-child th.model-col { text-align: left; }
+    .omni-table thead tr:first-child th:not(.model-col) { text-transform: uppercase; }
+    .omni-table thead tr:first-child th[rowspan]::after { content: none; }
+    .omni-table thead tr:first-child th.omni-group::after {
+      content: '';
+      position: absolute;
+      left: 0.75rem;
+      right: 0.75rem;
+      bottom: 0.25rem;
+      border-bottom: 1.5px solid var(--text);
+    }
+    .omni-table thead tr:first-child th[rowspan].omni-group::after { content: none; }
+    .omni-table thead tr:nth-child(2) th {
+      border-bottom: 1px solid var(--text);
+      padding-top: 0.35rem;
+    }
+    .mico-table th:not(:first-child),
+    .mico-table td:not(.model-name) { text-align: center; }
+    .mico-table th { padding: 0.72rem 0.38rem; font-size: 0.76rem; letter-spacing: 0.02em; }
+    .mico-table td { padding: 0.62rem 0.38rem; font-size: 0.74rem; }
+    .mico-table td.model-name { padding-left: 0.7rem; padding-right: 0.55rem; font-size: 0.78rem; }
+
+    /* CONTRIBUTIONS */
+    .contribs { display: flex; flex-direction: column; gap: 0.875rem; margin-top: 1.75rem; }
+    .contrib-item { display: flex; gap: 1.25rem; align-items: flex-start; padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; transition: border-color 0.2s; }
+    .contrib-item:hover { border-color: rgba(59,91,219,0.3); }
+    .contrib-num { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 600; color: var(--accent); background: rgba(59,91,219,0.08); border: 1px solid rgba(59,91,219,0.18); border-radius: 6px; padding: 0.28rem 0.6rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .contrib-item h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--text); }
+    .contrib-item p { font-size: 0.84rem; margin: 0; max-width: 100%; line-height: 1.65; }
+
+    /* CITATION */
+    .citation-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 1.75rem; }
+    .citation-header { padding: 0.8rem 1.25rem; border-bottom: 1px solid var(--border); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+    .copy-btn {
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(59,91,219,0.08);
+      border: 1px solid rgba(59,91,219,0.2);
+      color: var(--accent);
+      padding: 0;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .copy-btn:hover { background: var(--accent); color: white; }
+    pre { padding: 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; line-height: 1.75; color: var(--muted); overflow-x: auto; background: var(--surface); }
+    pre .kw { color: var(--accent2); }
+    pre .val { color: var(--accent3); }
+    pre .field { color: var(--accent); }
+
+    /* FOOTER */
+    footer { padding: 2.5rem 2rem; border-top: 1px solid var(--border); font-size: 0.82rem; color: var(--muted2); background: var(--surface); }
+    footer .footer-inner { max-width: 960px; margin: 0 auto; }
+    footer h3 { margin-bottom: 0.9rem; color: var(--text); text-align: center; }
+    footer p { max-width: 100%; margin-left: auto; margin-right: auto; line-height: 1.75; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { opacity:0; transform:translateY(20px); transition: opacity 0.55s ease, transform 0.55s ease; }
+    .fade-in.visible { opacity:1; transform:translateY(0); }
+
+    @media (max-width: 640px) {
+      .stages { grid-template-columns: 1fr; }
+      nav { gap: 0; flex-wrap: wrap; }
+      nav a { padding: 0.3rem 0.55rem; font-size: 0.75rem; }
+      .case-gallery-row { --case-output-w: 150px; --case-media-h: 150px; }
+      .abstract-figure {
+        float: none;
+        width: 100%;
+        margin: 0 0 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="#abstract">Abstract</a>
+  <a href="#method">Method</a>
+  <a href="#results">Results</a>
+  <a href="#contributions">Contributions</a>
+  <a href="#citation">Citation</a>
+</nav>
+
+<main>
+
+<!-- HERO -->
+<div class="hero">
+  <h1><em>UniCustom</em>: Unified Visual Conditioning<br>for Multi-Reference Image Generation</h1>
+
+  <!-- <p class="authors">
+    <strong>Yiyan Xu</strong><sup>1*</sup>,
+    <strong>Qiulin Wang</strong><sup>2†‡</sup>,
+    <strong>Wenjie Wang</strong><sup>1</sup>,
+    <strong>Yunyao Mao</strong><sup>2</sup>,
+    <br>
+    <strong>Xintao Wang</strong><sup>2</sup>,
+    <strong>Pengfei Wan</strong><sup>2</sup>,
+    <strong>Kun Gai</strong><sup>2</sup>,
+    <strong>Fuli Feng</strong><sup>1†</sup>
+  </p> -->
+  <p class="authors">
+    <strong>Yiyan Xu</strong><sup>1*</sup>,
+    <strong>Qiulin Wang</strong><sup>2</sup>,
+    <strong>Wenjie Wang</strong><sup>1</sup>,
+    <strong>Yunyao Mao</strong><sup>2</sup>,
+    <br>
+    <strong>Xintao Wang</strong><sup>2</sup>,
+    <strong>Pengfei Wan</strong><sup>2</sup>,
+    <strong>Kun Gai</strong><sup>2</sup>,
+    <strong>Fuli Feng</strong><sup>1</sup>
+  </p>
+
+  <p class="affil">
+    <sup>1</sup>University of Science and Technology China &nbsp;&nbsp;
+    <sup>2</sup>Kling Team, Kuaishou Technology
+  </p>
+  <p class="author-notes">* Work done during internship at Kling Team, Kuaishou Technology.</p>
+  <!-- <p class="author-notes">† Corresponding authors. &nbsp;&nbsp; ‡ Project Lead.</p> -->
+
+  <div class="btn-row">
+    <a class="btn btn-outline" href="#">
+      <img class="btn-icon" src="https://cdn.simpleicons.org/arxiv" alt="" aria-hidden="true"/>
+      arXiv
+    </a>
+    <a class="btn btn-outline" href="#">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+      Code (Coming Soon)
+    </a>
+    <a class="btn btn-outline" href="#">
+      <img class="btn-icon" src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" alt="" aria-hidden="true"/>
+      Checkpoints (Coming Soon)
+    </a>
+    <!-- <a class="btn btn-outline" href="#">
+      <img class="btn-icon" src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" alt="" aria-hidden="true"/>
+      Dataset (Coming Soon)
+    </a> -->
+  </div>
+</div>
+
+<!-- GALLERY -->
+<div class="gallery-section">
+    <div class="case-gallery-row scroll-right">
+      <div class="case-track">
+        <!-- loop1 -->
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case1/input1.jpg" alt="Case 1 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case1/output.jpg" alt="Case 1 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">This bowl of dessert sits on the gallery floor, reflecting the abstract art above.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case2/input1.jpg" alt="Case 2 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case2/input2.jpg" alt="Case 2 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case2/output.jpg" alt="Case 2 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">I wish the person and the man would face each other in a cozy café.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case3/input1.jpg" alt="Case 3 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case3/output.jpg" alt="Case 3 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">It sits in the cozy workspace on the wooden surface beside a steaming black coffee cup, its glossy skin catching the warm sunlight that filters through the window.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case4/input1.jpg" alt="Case 4 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case4/output.jpg" alt="Case 4 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">The person in cosplay is sitting at a bustling restaurant table, smiling brightly as they pose for a picture with friends, their red eyes sparkling with excitement amidst the lively atmosphere.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case5/input1.jpg" alt="Case 5 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case5/output.jpg" alt="Case 5 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Dance on the stage beneath the red curtain.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case6/input1.jpg" alt="Case 6 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case6/input2.jpg" alt="Case 6 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case6/output.jpg" alt="Case 6 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">He takes photos in the room.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case7/input1.jpg" alt="Case 7 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case7/input2.jpg" alt="Case 7 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case7/input3.jpg" alt="Case 7 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case7/output.jpg" alt="Case 7 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Let the person from the second image stand thoughtfully beside the sculptural piece in the art gallery from the third image, while the plant from the first image rests on the floor nearby, adding a touch of greenery to the minimalist space.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case8/input1.jpg" alt="Case 8 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case8/output.jpg" alt="Case 8 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Show the person with curly hair standing by a marina, enjoying the view while holding a handbag.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case9/input1.jpg" alt="Case 9 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case9/input2.jpg" alt="Case 9 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case9/output.jpg" alt="Case 9 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Have the two people facing each other in a cozy café.</p>
+      </article>
+        <!-- loop2 -->
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case1/input1.jpg" alt="Case 1 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case1/output.jpg" alt="Case 1 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">This bowl of dessert sits on the gallery floor, reflecting the abstract art above.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case2/input1.jpg" alt="Case 2 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case2/input2.jpg" alt="Case 2 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case2/output.jpg" alt="Case 2 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">I wish the person and the man would face each other in a cozy café.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case3/input1.jpg" alt="Case 3 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case3/output.jpg" alt="Case 3 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">It sits in the cozy workspace on the wooden surface beside a steaming black coffee cup, its glossy skin catching the warm sunlight that filters through the window.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case4/input1.jpg" alt="Case 4 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case4/output.jpg" alt="Case 4 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">The person in cosplay is sitting at a bustling restaurant table, smiling brightly as they pose for a picture with friends, their red eyes sparkling with excitement amidst the lively atmosphere.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case5/input1.jpg" alt="Case 5 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case5/output.jpg" alt="Case 5 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Dance on the stage beneath the red curtain.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case6/input1.jpg" alt="Case 6 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case6/input2.jpg" alt="Case 6 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case6/output.jpg" alt="Case 6 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">He takes photos in the room.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case7/input1.jpg" alt="Case 7 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case7/input2.jpg" alt="Case 7 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case7/input3.jpg" alt="Case 7 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case7/output.jpg" alt="Case 7 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Let the person from the second image stand thoughtfully beside the sculptural piece in the art gallery from the third image, while the plant from the first image rests on the floor nearby, adding a touch of greenery to the minimalist space.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case8/input1.jpg" alt="Case 8 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case8/output.jpg" alt="Case 8 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Show the person with curly hair standing by a marina, enjoying the view while holding a handbag.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case9/input1.jpg" alt="Case 9 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case9/input2.jpg" alt="Case 9 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case9/output.jpg" alt="Case 9 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Have the two people facing each other in a cozy café.</p>
+      </article>
+      </div>
+    </div>
+    <div class="case-gallery-row scroll-left">
+      <div class="case-track">
+        <!-- loop1 -->
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case10/input1.jpg" alt="Case 10 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case10/input2.jpg" alt="Case 10 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case10/input3.jpg" alt="Case 10 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case10/output.jpg" alt="Case 10 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">I&#x27;d like the man from the first photo and the individual from img 2 to give a presentation in the religious site from the third image, surrounded by the row of golden Buddha statues in the serene and contemplative corridor.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case11/input1.jpg" alt="Case 11 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case11/input2.jpg" alt="Case 11 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case11/input3.jpg" alt="Case 11 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case11/output.jpg" alt="Case 11 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Please have the individual in figure 1 hug the woman from picture 2 in the context in img 3, in the modern, stylish kitchen and dining area.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case12/input1.jpg" alt="Case 12 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case12/output.jpg" alt="Case 12 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">The stylish person is on a television show set, joyfully hugging a friend while surrounded by bright studio lights and cameras.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case13/input1.jpg" alt="Case 13 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case13/input2.jpg" alt="Case 13 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case13/output.jpg" alt="Case 13 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Please make the person from the first figure and the man in the second photo eat together.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case14/input1.jpg" alt="Case 14 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case14/output.jpg" alt="Case 14 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">She lies prone on the beach, staring straight at the camera while pursing her lips.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case15/input1.jpg" alt="Case 15 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case15/input2.jpg" alt="Case 15 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case15/input3.png" alt="Case 15 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case15/input4.png" alt="Case 15 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case15/input5.png" alt="Case 15 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case15/output.jpg" alt="Case 15 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">In a vibrant park, a woman in image 1 wears clothes in image 2, a vibrant floral skirt in various settings in image 3, a Supreme Logo Hat in image 4, and a Burberry Checkered Umbrella in image 5. She twirls happily among blooming flowers, the umbrella open to shield her from a light drizzle, while the hat shields her eyes from the soft sunlight peeking through clouds.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case16/input1.png" alt="Case 16 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case16/input2.png" alt="Case 16 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case16/input3.png" alt="Case 16 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case16/input4.png" alt="Case 16 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case16/output.jpg" alt="Case 16 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A woman stands confidently in the opulent setting of a dimly lit space, adorned with a striking, shimmering dress in teal and black sequins, its loose fit and high neck adding a touch of elegance. Her outfit is completed with a sophisticated black satin turban featuring a sparkling brooch, adding a touch of glamour. The blurred background hints at an opulent environment with ambient glowing lights, lending an air of mystery and sophistication to the scene. Her posture suggests poise and grace, as she exudes a sense of being both part of the luxurious surroundings and the center of attention.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case17/input1.png" alt="Case 17 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case17/input2.png" alt="Case 17 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case17/input3.png" alt="Case 17 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case17/output.jpg" alt="Case 17 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a vanity bathed in soft light, a shimmering liquid highlighter for radiant glow from image 1 glistens next to a clear spirit in a glass bottle from image 2. Nearby, a gloss-enhancing serum for lustrous hair from image 3 adds an air of elegance, inviting beauty rituals in a serene morning setting.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case18/input1.png" alt="Case 18 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case18/input2.png" alt="Case 18 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case18/input3.png" alt="Case 18 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case18/output.jpg" alt="Case 18 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A paddling watercraft, ideal for serene waters from image 1 floats gracefully on a tranquil lake, while a moisturizing, oil-infused bath bomb for skincare from image 2 rests on the sun-warmed shoreline. Nearby, a traditional formal outfit for men from image 3 is elegantly draped over a rock, creating an intriguing juxtaposition.</p>
+      </article>
+        <!-- loop2 -->
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case10/input1.jpg" alt="Case 10 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case10/input2.jpg" alt="Case 10 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case10/input3.jpg" alt="Case 10 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case10/output.jpg" alt="Case 10 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">I&#x27;d like the man from the first photo and the individual from img 2 to give a presentation in the religious site from the third image, surrounded by the row of golden Buddha statues in the serene and contemplative corridor.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case11/input1.jpg" alt="Case 11 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case11/input2.jpg" alt="Case 11 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case11/input3.jpg" alt="Case 11 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case11/output.jpg" alt="Case 11 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Please have the individual in figure 1 hug the woman from picture 2 in the context in img 3, in the modern, stylish kitchen and dining area.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case12/input1.jpg" alt="Case 12 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case12/output.jpg" alt="Case 12 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">The stylish person is on a television show set, joyfully hugging a friend while surrounded by bright studio lights and cameras.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case13/input1.jpg" alt="Case 13 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case13/input2.jpg" alt="Case 13 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case13/output.jpg" alt="Case 13 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Please make the person from the first figure and the man in the second photo eat together.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:1">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case14/input1.jpg" alt="Case 14 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case14/output.jpg" alt="Case 14 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">She lies prone on the beach, staring straight at the camera while pursing her lips.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case15/input1.jpg" alt="Case 15 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case15/input2.jpg" alt="Case 15 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case15/input3.png" alt="Case 15 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case15/input4.png" alt="Case 15 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case15/input5.png" alt="Case 15 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case15/output.jpg" alt="Case 15 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">In a vibrant park, a woman in image 1 wears clothes in image 2, a vibrant floral skirt in various settings in image 3, a Supreme Logo Hat in image 4, and a Burberry Checkered Umbrella in image 5. She twirls happily among blooming flowers, the umbrella open to shield her from a light drizzle, while the hat shields her eyes from the soft sunlight peeking through clouds.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case16/input1.png" alt="Case 16 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case16/input2.png" alt="Case 16 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case16/input3.png" alt="Case 16 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case16/input4.png" alt="Case 16 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case16/output.jpg" alt="Case 16 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A woman stands confidently in the opulent setting of a dimly lit space, adorned with a striking, shimmering dress in teal and black sequins, its loose fit and high neck adding a touch of elegance. Her outfit is completed with a sophisticated black satin turban featuring a sparkling brooch, adding a touch of glamour. The blurred background hints at an opulent environment with ambient glowing lights, lending an air of mystery and sophistication to the scene. Her posture suggests poise and grace, as she exudes a sense of being both part of the luxurious surroundings and the center of attention.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case17/input1.png" alt="Case 17 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case17/input2.png" alt="Case 17 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case17/input3.png" alt="Case 17 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case17/output.jpg" alt="Case 17 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a vanity bathed in soft light, a shimmering liquid highlighter for radiant glow from image 1 glistens next to a clear spirit in a glass bottle from image 2. Nearby, a gloss-enhancing serum for lustrous hair from image 3 adds an air of elegance, inviting beauty rituals in a serene morning setting.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case18/input1.png" alt="Case 18 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case18/input2.png" alt="Case 18 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case18/input3.png" alt="Case 18 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case18/output.jpg" alt="Case 18 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A paddling watercraft, ideal for serene waters from image 1 floats gracefully on a tranquil lake, while a moisturizing, oil-infused bath bomb for skincare from image 2 rests on the sun-warmed shoreline. Nearby, a traditional formal outfit for men from image 3 is elegantly draped over a rock, creating an intriguing juxtaposition.</p>
+      </article>
+      </div>
+    </div>
+    <div class="case-gallery-row scroll-right">
+      <div class="case-track">
+        <!-- loop1 -->
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case19/input1.jpg" alt="Case 19 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case19/input2.jpg" alt="Case 19 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case19/output.jpg" alt="Case 19 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Inside a stylish living room, the women are dressed in polished business attire, one sitting on a chair and the other leaning on its backrest; they both look towards the camera with confident expressions, the angle slightly below eye level to convey authority and partnership.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case20/input1.jpg" alt="Case 20 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case20/input2.jpg" alt="Case 20 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case20/input3.png" alt="Case 20 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case20/output.jpg" alt="Case 20 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a sunny terrace, a woman in image 1 wears the clothes in image 2, enjoying a creamy blended ice cream beverage in image 3. She smiles as she watches the passing clouds, savoring the moment amidst the gentle breeze and vibrant flowers around her.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case21/input1.jpg" alt="Case 21 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case21/input2.png" alt="Case 21 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case21/input3.png" alt="Case 21 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case21/output.jpg" alt="Case 21 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a bustling city street, a woman in image 1 wears the black leather jacket in image 2, confidently straddling the racing moped in image 3, as the sun sets behind her, casting a golden glow on the scene, ready to speed into the horizon.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case22/input1.png" alt="Case 22 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case22/input2.png" alt="Case 22 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case22/input3.png" alt="Case 22 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case22/input4.png" alt="Case 22 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case22/input5.png" alt="Case 22 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case22/output.jpg" alt="Case 22 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A man is standing on a serene beach, with the gentle waves lapping at the shore and fluffy clouds scattered across the bright blue sky. He wears a crisp white short-sleeve cotton shirt and light beige pants, both of which contrast elegantly with the natural hues of the sandy beach. Topping off his outfit is a stylish straw hat, shielding him from the sun. The man holds a coconut with a straw, embodying a vibe of tranquility and leisure in this picturesque coastal setting.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case23/input1.jpg" alt="Case 23 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case23/input2.jpg" alt="Case 23 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case23/input3.png" alt="Case 23 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case23/input4.png" alt="Case 23 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case23/output.jpg" alt="Case 23 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">In a vibrant garden, a woman in image 1 wears clothes in image 2, complemented by Khaki pants with multiple utility pockets in image 3. She gently exfoliates her skin with Soft gloves for gentle skin exfoliation in image 4, enjoying the sunlight as she tends to the blooming flowers around her.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case24/input1.png" alt="Case 24 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case24/input2.png" alt="Case 24 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case24/input3.png" alt="Case 24 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case24/input4.png" alt="Case 24 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case24/output.jpg" alt="Case 24 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Underneath the tall and iconic Parisian landmark from image 1, a fast and maneuverable aquatic vehicle from image 2 glides gracefully along the Seine. Nearby, a compact travel caravan for outdoor adventures from image 3 is parked, while a bike with extended handlebars and low seat from image 4 leans against it, creating a vibrant setting of exploration and leisure by the riverbank.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case25/input1.jpg" alt="Case 25 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case25/input2.png" alt="Case 25 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case25/input3.png" alt="Case 25 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case25/output.jpg" alt="Case 25 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">In a quaint kitchen, an old woman in image 1 stands beside a tallboy dresser with multiple drawers in image 3, rummaging through it. On the table before her, a wide porcelain pasta bowl for serving in image 2 is filled with steaming pasta, ready for the family meal she&#x27;s preparing.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case26/input1.jpg" alt="Case 26 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case26/input2.jpg" alt="Case 26 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case26/input3.png" alt="Case 26 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case26/input4.png" alt="Case 26 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case26/output.jpg" alt="Case 26 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a sunny afternoon in a vibrant garden, a man in image 1 sets up a weather-resistant outdoor rug for patios and gardens in image 3 under a large umbrella. Nearby, a woman in image 2 arranges cushions on the rug while discussing plans. A four-seater golf cart in image 4 stands ready at the edge of the garden, waiting to take them for a leisurely ride.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case27/input1.jpg" alt="Case 27 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case27/input2.png" alt="Case 27 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case27/input3.png" alt="Case 27 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case27/output.jpg" alt="Case 27 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a bustling city street, a man in image 1 wears a classic beige trench coat in image 2 and classic blue denim fashion staple in image 3. He strolls with confidence, the autumn breeze causing the trench coat to flutter slightly as he pauses to take in the vibrant urban life around him.</p>
+      </article>
+        <!-- loop2 -->
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case19/input1.jpg" alt="Case 19 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case19/input2.jpg" alt="Case 19 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case19/output.jpg" alt="Case 19 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Inside a stylish living room, the women are dressed in polished business attire, one sitting on a chair and the other leaning on its backrest; they both look towards the camera with confident expressions, the angle slightly below eye level to convey authority and partnership.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case20/input1.jpg" alt="Case 20 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case20/input2.jpg" alt="Case 20 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case20/input3.png" alt="Case 20 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case20/output.jpg" alt="Case 20 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a sunny terrace, a woman in image 1 wears the clothes in image 2, enjoying a creamy blended ice cream beverage in image 3. She smiles as she watches the passing clouds, savoring the moment amidst the gentle breeze and vibrant flowers around her.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case21/input1.jpg" alt="Case 21 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case21/input2.png" alt="Case 21 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case21/input3.png" alt="Case 21 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case21/output.jpg" alt="Case 21 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a bustling city street, a woman in image 1 wears the black leather jacket in image 2, confidently straddling the racing moped in image 3, as the sun sets behind her, casting a golden glow on the scene, ready to speed into the horizon.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case22/input1.png" alt="Case 22 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case22/input2.png" alt="Case 22 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case22/input3.png" alt="Case 22 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case22/input4.png" alt="Case 22 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case22/input5.png" alt="Case 22 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case22/output.jpg" alt="Case 22 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A man is standing on a serene beach, with the gentle waves lapping at the shore and fluffy clouds scattered across the bright blue sky. He wears a crisp white short-sleeve cotton shirt and light beige pants, both of which contrast elegantly with the natural hues of the sandy beach. Topping off his outfit is a stylish straw hat, shielding him from the sun. The man holds a coconut with a straw, embodying a vibe of tranquility and leisure in this picturesque coastal setting.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case23/input1.jpg" alt="Case 23 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case23/input2.jpg" alt="Case 23 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case23/input3.png" alt="Case 23 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case23/input4.png" alt="Case 23 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case23/output.jpg" alt="Case 23 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">In a vibrant garden, a woman in image 1 wears clothes in image 2, complemented by Khaki pants with multiple utility pockets in image 3. She gently exfoliates her skin with Soft gloves for gentle skin exfoliation in image 4, enjoying the sunlight as she tends to the blooming flowers around her.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case24/input1.png" alt="Case 24 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case24/input2.png" alt="Case 24 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case24/input3.png" alt="Case 24 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case24/input4.png" alt="Case 24 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case24/output.jpg" alt="Case 24 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Underneath the tall and iconic Parisian landmark from image 1, a fast and maneuverable aquatic vehicle from image 2 glides gracefully along the Seine. Nearby, a compact travel caravan for outdoor adventures from image 3 is parked, while a bike with extended handlebars and low seat from image 4 leans against it, creating a vibrant setting of exploration and leisure by the riverbank.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case25/input1.jpg" alt="Case 25 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case25/input2.png" alt="Case 25 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case25/input3.png" alt="Case 25 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case25/output.jpg" alt="Case 25 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">In a quaint kitchen, an old woman in image 1 stands beside a tallboy dresser with multiple drawers in image 3, rummaging through it. On the table before her, a wide porcelain pasta bowl for serving in image 2 is filled with steaming pasta, ready for the family meal she&#x27;s preparing.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case26/input1.jpg" alt="Case 26 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case26/input2.jpg" alt="Case 26 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case26/input3.png" alt="Case 26 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case26/input4.png" alt="Case 26 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case26/output.jpg" alt="Case 26 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a sunny afternoon in a vibrant garden, a man in image 1 sets up a weather-resistant outdoor rug for patios and gardens in image 3 under a large umbrella. Nearby, a woman in image 2 arranges cushions on the rug while discussing plans. A four-seater golf cart in image 4 stands ready at the edge of the garden, waiting to take them for a leisurely ride.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case27/input1.jpg" alt="Case 27 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case27/input2.png" alt="Case 27 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case27/input3.png" alt="Case 27 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case27/output.jpg" alt="Case 27 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">On a bustling city street, a man in image 1 wears a classic beige trench coat in image 2 and classic blue denim fashion staple in image 3. He strolls with confidence, the autumn breeze causing the trench coat to flutter slightly as he pauses to take in the vibrant urban life around him.</p>
+      </article>
+      </div>
+    </div>
+    <div class="case-gallery-row scroll-left">
+      <div class="case-track">
+        <!-- loop1 -->
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case28/input1.png" alt="Case 28 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case28/input2.png" alt="Case 28 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case28/input3.png" alt="Case 28 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case28/input4.png" alt="Case 28 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case28/input5.png" alt="Case 28 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case28/output.jpg" alt="Case 28 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A person with cascading blonde hair adorned with pastel highlights wears a ribbed brown tank top paired with light blue jeans featuring a brown belt, resting with an air of casual elegance. A beaded and layered necklace adds a bohemian flair, its colorful strands draped around the neck, complemented by a collection of bracelets on one wrist. In the background, the scene is set against a cozy interior accentuated with muted colors and simple decoration, including ceramic jugs, while a framed picture leans effortlessly on a shelf, adding a touch of artful intrigue to the setting.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:4">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case29/input1.png" alt="Case 29 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case29/input2.png" alt="Case 29 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case29/input3.png" alt="Case 29 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case29/input4.png" alt="Case 29 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case29/input5.png" alt="Case 29 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case29/input6.png" alt="Case 29 input image 6"/>
+              <span class="picture-label">Picture 6</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case29/input7.png" alt="Case 29 input image 7"/>
+              <span class="picture-label">Picture 7</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case29/output.jpg" alt="Case 29 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Against the backdrop of a city street with blurred scooters parked alongside a stone building, a person stands confidently. Clad in a striking leopard-print coat with a classic collar, they balance edgy elegance with a pair of crisp white wide-legged jeans. Completing the outfit are sleek black ankle boots, adding a touch of sophistication. Draped casually around their shoulder is a striking black and beige striped handbag, while a grey scarf provides a subtle yet warming touch.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case30/input1.png" alt="Case 30 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case30/input2.png" alt="Case 30 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case30/input3.png" alt="Case 30 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case30/input4.png" alt="Case 30 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case30/output.jpg" alt="Case 30 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A man sits confidently in front of a bustling café interior, his figure framing a scene with a menu board listing starters like cheese curds and taters, coffee makers, and a tray of golden fries resting on the counter. He is wearing a plain grey T-shirt from Image 1, complemented by a stylish grey cap emblazoned with an orange logo from Image 2.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case31/input1.jpg" alt="Case 31 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case31/input2.png" alt="Case 31 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case31/input3.png" alt="Case 31 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case31/output.jpg" alt="Case 31 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">In a sunlit garden, a woman in image 1 sits at a rustic table, cradling a hot beverage, served black or with milk. in image 2, while beside her, a hand tool for digging and planting. in image 3 leans against the table, ready for her afternoon gardening tasks.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case32/input1.png" alt="Case 32 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case32/input2.png" alt="Case 32 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case32/input3.png" alt="Case 32 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case32/input4.png" alt="Case 32 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case32/output.jpg" alt="Case 32 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A woman with flowing brown hair from Image 3 is dressed in a delicate, white lace blouse similar to the one in Image 1. A vibrant red scarf from Image 2 adds a splash of color, visible in the water around her. Gentle waves from Image 4 lap onto the shore, creating a serene backdrop that complements her peaceful pose.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case33/input1.png" alt="Case 33 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case33/input2.png" alt="Case 33 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case33/input3.png" alt="Case 33 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case33/input4.png" alt="Case 33 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case33/output.jpg" alt="Case 33 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A woman stands confidently in the foreground, dressed in a striking cheerleading outfit composed of a vibrantly detailed red, white, and navy blue top, paired with matching shorts that display sparkling embellishments. Her long, dark hair cascades over her shoulders. She poses with her arms raised, exuding energy amidst a bustling stadium atmosphere filled with excited fans, evident from the blurred figures and dynamic backdrop. The atmosphere is charged with anticipation, enhancing the high-energy scene.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case34/input1.png" alt="Case 34 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case34/input2.png" alt="Case 34 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case34/input3.png" alt="Case 34 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case34/input4.png" alt="Case 34 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case34/input5.png" alt="Case 34 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case34/output.jpg" alt="Case 34 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Standing confidently in front of a rugged urban backdrop featuring a brick corner and partially visible bridge structure, a person with curly hair exudes a casual yet stylish vibe. Wearing a light denim jacket and tan work boots, their attire is completed by a flowing yellow and black checkered dress. The relaxed setting and outfit create a harmonious blend of city life and personal style.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case35/input1.png" alt="Case 35 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case35/input2.png" alt="Case 35 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case35/input3.png" alt="Case 35 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case35/input4.png" alt="Case 35 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case35/output.jpg" alt="Case 35 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A person is wearing a vibrant green lace crop top with delicate floral patterns and thin straps. This top beautifully complements a pair of dark blue jeans, creating a stylish and modern ensemble. The subject stands against a soft gray background, adding a neutral canvas that enhances the vividness of the clothing. Their posture is relaxed, exuding confidence and style, making the outfit the focal point of the scene.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case36/input1.png" alt="Case 36 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case36/input2.png" alt="Case 36 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case36/input3.png" alt="Case 36 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case36/input4.png" alt="Case 36 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case36/input5.png" alt="Case 36 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case36/output.jpg" alt="Case 36 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A person is standing in a fitting room, posed with a relaxed posture against the backdrop of pale grey walls and mirrors that line the small cubicle. She is wearing a light purple blouse from Image 1, paired with distressed denim jeans from Image 2. Her footwear consists of beige espadrilles with playful cactus embroidery from Image 3. Her dark curly hair from Image 4 frames her face. The floor beneath her is a light wood tone, enhancing the cozy yet stylish atmosphere of the fitting room.</p>
+      </article>
+        <!-- loop2 -->
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case28/input1.png" alt="Case 28 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case28/input2.png" alt="Case 28 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case28/input3.png" alt="Case 28 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case28/input4.png" alt="Case 28 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case28/input5.png" alt="Case 28 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case28/output.jpg" alt="Case 28 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A person with cascading blonde hair adorned with pastel highlights wears a ribbed brown tank top paired with light blue jeans featuring a brown belt, resting with an air of casual elegance. A beaded and layered necklace adds a bohemian flair, its colorful strands draped around the neck, complemented by a collection of bracelets on one wrist. In the background, the scene is set against a cozy interior accentuated with muted colors and simple decoration, including ceramic jugs, while a framed picture leans effortlessly on a shelf, adding a touch of artful intrigue to the setting.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:4">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case29/input1.png" alt="Case 29 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case29/input2.png" alt="Case 29 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case29/input3.png" alt="Case 29 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case29/input4.png" alt="Case 29 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case29/input5.png" alt="Case 29 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case29/input6.png" alt="Case 29 input image 6"/>
+              <span class="picture-label">Picture 6</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case29/input7.png" alt="Case 29 input image 7"/>
+              <span class="picture-label">Picture 7</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case29/output.jpg" alt="Case 29 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Against the backdrop of a city street with blurred scooters parked alongside a stone building, a person stands confidently. Clad in a striking leopard-print coat with a classic collar, they balance edgy elegance with a pair of crisp white wide-legged jeans. Completing the outfit are sleek black ankle boots, adding a touch of sophistication. Draped casually around their shoulder is a striking black and beige striped handbag, while a grey scarf provides a subtle yet warming touch.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case30/input1.png" alt="Case 30 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case30/input2.png" alt="Case 30 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case30/input3.png" alt="Case 30 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case30/input4.png" alt="Case 30 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case30/output.jpg" alt="Case 30 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A man sits confidently in front of a bustling café interior, his figure framing a scene with a menu board listing starters like cheese curds and taters, coffee makers, and a tray of golden fries resting on the counter. He is wearing a plain grey T-shirt from Image 1, complemented by a stylish grey cap emblazoned with an orange logo from Image 2.</p>
+      </article>
+      <article class="case-card one-col">
+        <div class="case-media">
+          <div class="case-inputs one-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case31/input1.jpg" alt="Case 31 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case31/input2.png" alt="Case 31 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case31/input3.png" alt="Case 31 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case31/output.jpg" alt="Case 31 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">In a sunlit garden, a woman in image 1 sits at a rustic table, cradling a hot beverage, served black or with milk. in image 2, while beside her, a hand tool for digging and planting. in image 3 leans against the table, ready for her afternoon gardening tasks.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case32/input1.png" alt="Case 32 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case32/input2.png" alt="Case 32 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case32/input3.png" alt="Case 32 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case32/input4.png" alt="Case 32 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case32/output.jpg" alt="Case 32 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A woman with flowing brown hair from Image 3 is dressed in a delicate, white lace blouse similar to the one in Image 1. A vibrant red scarf from Image 2 adds a splash of color, visible in the water around her. Gentle waves from Image 4 lap onto the shore, creating a serene backdrop that complements her peaceful pose.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case33/input1.png" alt="Case 33 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case33/input2.png" alt="Case 33 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case33/input3.png" alt="Case 33 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case33/input4.png" alt="Case 33 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case33/output.jpg" alt="Case 33 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A woman stands confidently in the foreground, dressed in a striking cheerleading outfit composed of a vibrantly detailed red, white, and navy blue top, paired with matching shorts that display sparkling embellishments. Her long, dark hair cascades over her shoulders. She poses with her arms raised, exuding energy amidst a bustling stadium atmosphere filled with excited fans, evident from the blurred figures and dynamic backdrop. The atmosphere is charged with anticipation, enhancing the high-energy scene.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case34/input1.png" alt="Case 34 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case34/input2.png" alt="Case 34 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case34/input3.png" alt="Case 34 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case34/input4.png" alt="Case 34 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case34/input5.png" alt="Case 34 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case34/output.jpg" alt="Case 34 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">Standing confidently in front of a rugged urban backdrop featuring a brick corner and partially visible bridge structure, a person with curly hair exudes a casual yet stylish vibe. Wearing a light denim jacket and tan work boots, their attire is completed by a flowing yellow and black checkered dress. The relaxed setting and outfit create a harmonious blend of city life and personal style.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:2">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case35/input1.png" alt="Case 35 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case35/input2.png" alt="Case 35 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case35/input3.png" alt="Case 35 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-right">
+              <img src="assets/cases/case35/input4.png" alt="Case 35 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case35/output.jpg" alt="Case 35 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A person is wearing a vibrant green lace crop top with delicate floral patterns and thin straps. This top beautifully complements a pair of dark blue jeans, creating a stylish and modern ensemble. The subject stands against a soft gray background, adding a neutral canvas that enhances the vividness of the clothing. Their posture is relaxed, exuding confidence and style, making the outfit the focal point of the scene.</p>
+      </article>
+      <article class="case-card two-col">
+        <div class="case-media">
+          <div class="case-inputs two-col" style="--input-rows:3">
+            <div class="case-img input-tile input-top input-left">
+              <img src="assets/cases/case36/input1.png" alt="Case 36 input image 1"/>
+              <span class="picture-label">Picture 1</span>
+            </div>
+            <div class="case-img input-tile input-top input-right">
+              <img src="assets/cases/case36/input2.png" alt="Case 36 input image 2"/>
+              <span class="picture-label">Picture 2</span>
+            </div>
+            <div class="case-img input-tile input-middle input-left">
+              <img src="assets/cases/case36/input3.png" alt="Case 36 input image 3"/>
+              <span class="picture-label">Picture 3</span>
+            </div>
+            <div class="case-img input-tile input-middle input-right">
+              <img src="assets/cases/case36/input4.png" alt="Case 36 input image 4"/>
+              <span class="picture-label">Picture 4</span>
+            </div>
+            <div class="case-img input-tile input-bottom input-left">
+              <img src="assets/cases/case36/input5.png" alt="Case 36 input image 5"/>
+              <span class="picture-label">Picture 5</span>
+            </div>
+          </div>
+          <div class="case-output case-img">
+            <img src="assets/cases/case36/output.jpg" alt="Case 36 output image"/>
+          </div>
+        </div>
+        <p class="case-instruction">A person is standing in a fitting room, posed with a relaxed posture against the backdrop of pale grey walls and mirrors that line the small cubicle. She is wearing a light purple blouse from Image 1, paired with distressed denim jeans from Image 2. Her footwear consists of beige espadrilles with playful cactus embroidery from Image 3. Her dark curly hair from Image 4 frames her face. The floor beneath her is a light wood tone, enhancing the cozy yet stylish atmosphere of the fitting room.</p>
+      </article>
+      </div>
+    </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- ABSTRACT -->
+<section id="abstract" class="fade-in">
+  <div class="section-label">Abstract</div>
+  <div class="abstract-card">
+    <figure class="abstract-figure">
+      <img src="assets/intro/intro.png" alt="UniCustom visual overview"/>
+      <!-- <figcaption class="fig-caption"><strong>Illustration of decoupled and unified visual conditioning.</strong></figcaption> -->
+    </figure>
+    <p>Multi-reference image generation aims to synthesize images from textual instructions while faithfully preserving subject identities from multiple reference images. Existing VLM-enhanced diffusion models commonly rely on <strong style="color:var(--text)">decoupled visual conditioning</strong>: semantic ViT features are processed by the VLM for instruction understanding, whereas appearance-rich VAE features are injected later into the diffusion backbone. Despite its intuitive design, this separation makes it difficult for the model to associate each semantically grounded subject with visual details from the correct reference image, leading to attribute leakage and cross-reference confusion in complex multi-reference settings. To address this issue, we propose <strong style="color:var(--accent)">UniCustom</strong>, a unified visual conditioning framework that fuses ViT and VAE features <span style="font-style: italic;">before</span> VLM encoding. This early fusion exposes the VLM to both semantic cues and appearance-rich details, enabling its hidden states to jointly encode the referred subject and corresponding visual appearance with only a lightweight linear fusion layer. We adopt a two-stage training strategy: reconstruction-oriented pretraining that preserves reference-specific appearance details in the fused hidden states, followed by supervised finetuning on single- and multi-reference generation tasks. We further introduce <strong style="color:var(--text)">slot-wise binding regularization</strong> that encourages each image slot to preserve low-level details of its corresponding reference. Experiments on two multi-reference generation benchmarks demonstrate that UniCustom consistently improves subject consistency, instruction following, and compositional fidelity over strong baselines.</p>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- METHOD -->
+<section id="method" class="fade-in">
+  <div class="section-label">Method</div>
+  <h3>Architecture</h3>
+  <p>UniCustom introduces a lightweight early-fusion module that injects VAE features into ViT features before VLM encoding, enabling hidden states that are both semantically addressable and appearance-aware.</p>
+
+  <!-- Architecture figure -->
+  <div class="paper-figure architecture-figure">
+    <img src="assets/method/overview.png" alt="Model Architecture"/>
+  </div>
+  <p class="fig-caption architecture-caption"><strong>Overview of UniCustom.</strong> ViT and VAE features are fused before VLM encoding, producing semantically addressable and appearance-aware hidden states for DiT generation.</p>
+
+  <h3 style="margin-top:3.5rem">Training Strategy</h3>
+  <p>The VLM is kept frozen throughout both stages; only the lightweight fusion layer and the DiT are optimized, preserving pretrained multimodal understanding while progressively learning fine-grained visual binding.</p>
+
+  <!-- Training strategy figure -->
+  <div class="paper-figure training-figure">
+    <img src="assets/method/training.png" alt="Training Strategy"/>
+  </div>
+  <p class="fig-caption"><strong>Two-stage training strategy.</strong> The first stage progressively learns a unified visual representation that supports fine-grained reference encoding, semantic grounding, and reliable textual-to-visual binding through reconstruction-oriented multi-image pretraining. The second stage further adapts the diffusion backbone to reference-based image generation, enabling instruction-following synthesis with single or multiple reference images while preserving the learned grounding and binding abilities.</p>
+
+  <div class="stages">
+    <div class="stage-card">
+      <div class="stage-num">STAGE 01 · PRETRAINING</div>
+      <h3>Unified Representation Learning</h3>
+      <ul class="stage-tasks">
+        <li>25% Multi-image reconstruction</li>
+        <li>25% Multi-image localization</li>
+        <li>25% Multi-image tiling</li>
+        <li>25% Multi-image understanding (auxiliary)</li>
+      </ul>
+      <p class="stage-note">Fusion layer + DiT optimized. LR = 5×10<sup>-5</sup>, 18K steps.</p>
+    </div>
+    <div class="stage-card">
+      <div class="stage-num">STAGE 02 · SUPERVISED FINETUNING</div>
+      <h3>Multi-Reference Image Generation</h3>
+      <ul class="stage-tasks">
+        <li>50% multi-reference image generation</li>
+        <li>25% single-reference generation</li>
+        <li>10% image editing (auxiliary)</li>
+        <li>5% text-to-image generation (auxiliary)</li>
+        <li>10% pretraining tasks (anti-forgetting)</li>
+      </ul>
+      <p class="stage-note">Fusion layer frozen; only DiT optimized. LR = 1×10<sup>-5</sup>, 18K steps.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- RESULTS -->
+<section id="results" class="fade-in">
+  <div class="section-label">Results</div>
+  <h3>State-of-the-Art Among Open-Source Models</h3>
+  <p>UniCustom achieves the best overall performance among open-source models on both OmniContext and MICo-Bench, with especially strong gains in multi-reference, scene-level, and compositional settings.</p>
+
+  <p style="font-size:0.8rem; color:var(--accent); font-weight:600; margin-bottom:0.4rem; max-width:100%">▸ OmniContext Benchmark</p>
+  <div class="results-wrap">
+    <table class="omni-table">
+      <thead>
+        <tr><th class="model-col" rowspan="2">Models</th><th class="omni-group" colspan="2">Single</th><th class="omni-group" colspan="3">Multiple</th><th class="omni-group" colspan="3">Scene</th><th class="omni-group" rowspan="2">Average</th></tr>
+        <tr><th>Character</th><th>Object</th><th>Character</th><th>Object</th><th>Char.+Obj.</th><th>Character</th><th>Object</th><th>Char.+Obj.</th></tr>
+      </thead>
+      <tbody>
+        <tr class="table-group-header closed"><td colspan="10">Closed-source Models</td></tr>
+        <tr><td class="model-name">GPT-Image-2</td><td><span class="best">9.24</span></td><td><span class="best">9.65</span></td><td><span class="best">9.13</span></td><td><span class="best">9.50</span></td><td><span class="best">8.94</span></td><td><span class="best">9.27</span></td><td><span class="best">9.25</span></td><td><span class="best">8.95</span></td><td><span class="best">9.24</span></td></tr>
+        <tr><td class="model-name">Nano Banana 2</td><td>8.98</td><td>9.44</td><td>8.85</td><td>9.26</td><td>8.81</td><td>8.80</td><td>8.59</td><td>8.67</td><td>8.92</td></tr>
+        <tr class="table-group-header open"><td colspan="10">Open-source Models</td></tr>
+        <tr><td class="model-name">FLUX-Kontext [dev]</td><td>7.09</td><td>7.35</td><td>2.49</td><td>5.46</td><td>4.46</td><td>2.86</td><td>3.89</td><td>3.40</td><td>4.62</td></tr>
+        <tr><td class="model-name">UNO</td><td>7.51</td><td>7.99</td><td>4.56</td><td>7.41</td><td>6.53</td><td>4.00</td><td>5.76</td><td>5.77</td><td>6.19</td></tr>
+        <tr><td class="model-name">USO</td><td>7.71</td><td>7.68</td><td>2.91</td><td>7.27</td><td>5.61</td><td>3.88</td><td>6.49</td><td>6.04</td><td>5.95</td></tr>
+        <tr><td class="model-name">BAGEL</td><td>7.12</td><td>7.70</td><td>5.86</td><td>7.07</td><td>6.79</td><td>4.98</td><td>6.05</td><td>6.03</td><td>6.45</td></tr>
+        <tr><td class="model-name">OmniGen2</td><td>8.04</td><td>7.87</td><td>7.22</td><td>7.76</td><td>7.51</td><td>7.52</td><td>7.30</td><td>7.57</td><td>7.60</td></tr>
+        <tr><td class="model-name">Qwen-Image-Edit-2509</td><td>8.11</td><td><span class="best">9.01</span></td><td><span class="best">7.85</span></td><td><span class="best">8.53</span></td><td>7.60</td><td>5.88</td><td>7.38</td><td>7.12</td><td>7.69</td></tr>
+        <tr><td class="model-name">LongCat-Image-Edit</td><td><span class="best">8.24</span></td><td>8.63</td><td>6.69</td><td>8.07</td><td>6.99</td><td>5.80</td><td>6.73</td><td>6.98</td><td>7.26</td></tr>
+        <tr class="ours">
+          <td class="model-name">UniCustom (Ours)</td>
+          <td>8.06</td><td>7.51</td><td>7.78</td><td>7.99</td><td><span class="best">7.86</span></td><td><span class="best">7.86</span></td><td><span class="best">7.72</span></td><td><span class="best">7.92</span></td><td><span class="best">7.84</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="table-note">* "Char." and "Obj." denote "Character" and "Object", respectively.</p>
+
+  <p style="font-size:0.8rem; color:var(--accent); font-weight:600; margin-top:2rem; margin-bottom:0.4rem; max-width:100%">▸ MICo-Bench</p>
+  <div class="results-wrap mico-results-wrap">
+    <table class="mico-table">
+      <thead>
+        <tr><th>Model</th><th>Object</th><th>Person</th><th>HOI</th><th>De&amp;Re</th><th>Overall</th></tr>
+      </thead>
+      <tbody>
+        <tr class="table-group-header closed"><td colspan="6">Closed-source Models</td></tr>
+        <tr><td class="model-name">GPT-Image-2</td><td>66.93</td><td>60.56</td><td>59.02</td><td>62.69</td><td>61.78</td></tr>
+        <tr><td class="model-name">Nano Banana 2</td><td><span class="best">68.46</span></td><td><span class="best">65.88</span></td><td><span class="best">64.88</span></td><td><span class="best">70.28</span></td><td><span class="best">67.42</span></td></tr>
+        <tr class="table-group-header open"><td colspan="6">Open-source Models</td></tr>
+        <tr><td class="model-name">FLUX-Kontext [dev]</td><td>21.40</td><td>14.33</td><td>12.67</td><td>7.24</td><td>12.51</td></tr>
+        <tr><td class="model-name">UNO</td><td>42.20</td><td>15.15</td><td>27.99</td><td>41.93</td><td>32.43</td></tr>
+        <tr><td class="model-name">USO</td><td>38.18</td><td>15.57</td><td>20.25</td><td>35.91</td><td>27.37</td></tr>
+        <tr><td class="model-name">BAGEL</td><td>39.23</td><td>16.77</td><td>20.99</td><td>46.75</td><td>31.62</td></tr>
+        <tr><td class="model-name">Qwen-Image-Edit-2509</td><td>37.33</td><td><span class="best">28.01</span></td><td>22.06</td><td>10.53</td><td>21.67</td></tr>
+        <tr><td class="model-name">LongCat-Image-Edit</td><td>40.55</td><td>19.40</td><td>24.47</td><td>14.86</td><td>22.78</td></tr>
+        <tr class="ours">
+          <td class="model-name">UniCustom (Ours)</td>
+          <td><span class="best">54.30</span></td><td>18.12</td><td><span class="best">40.51</span></td><td><span class="best">50.29</span></td><td><span class="best">41.71</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="table-note">* "HOI" and "De&Re" denote "Human-Object Interaction" and "Decomposition & Recomposition", respectively.</p>
+</section>
+
+<hr class="divider"/>
+
+<!-- CONTRIBUTIONS -->
+<section id="contributions" class="fade-in">
+  <div class="section-label">Contributions</div>
+  <div class="contribs">
+    <div class="contrib-item">
+      <span class="contrib-num">01</span>
+      <div>
+        <h3>Identifying the Grounding–Binding Gap</h3>
+        <p>We identify the grounding--binding gap in VLM-enhanced diffusion models for multi-reference image generation. In existing decoupled conditioning designs, the DiT must implicitly associate VLM-encoded subject semantics with separately injected appearance features, which becomes unreliable with multiple references. </p>
+      </div>
+    </div>
+    <div class="contrib-item">
+      <span class="contrib-num">02</span>
+      <div>
+        <h3>Unified Visual Conditioning</h3>
+        <p>We propose UniCustom, a unified visual conditioning framework that makes reference appearances semantically accessible. By fusing ViT and VAE features before VLM encoding, UniCustom produces hidden states that jointly encode the referred subject and its fine-grained visual details, thereby providing the DiT with more explicit semantic--appearance correspondences.</p>
+      </div>
+    </div>
+    <div class="contrib-item">
+      <span class="contrib-num">03</span>
+      <div>
+        <h3>Two-Stage Training + Slot-wise Binding Regularization</h3>
+        <p>We introduce a two-stage training strategy with slot-wise binding regularization to progressively learn reference-specific appearance preservation and adapt it to multi-reference generation. The reconstruction-oriented pretraining stage achieves a single-image reconstruction PSNR close to 30 dB, indicating that fused VLM hidden states can serve as an effective conduit for transmitting low-level details from VAE features to the DiT. Extensive experiments on two multi-reference image generation benchmarks further demonstrate that UniCustom outperforms existing methods.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<!-- CITATION -->
+<section id="citation" class="fade-in">
+  <div class="section-label">Citation</div>
+  <p>If you find UniCustom useful in your research, please consider citing our paper.</p>
+  <div class="citation-block">
+    <div class="citation-header">
+      BibTeX
+      <button class="copy-btn" onclick="copyBib()" aria-label="Copy BibTeX" title="Copy BibTeX">
+        <svg class="copy-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <rect x="9" y="9" width="11" height="11" rx="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+    <pre id="bib-text"><span class="kw">@article{</span><span class="val">xu2026unicustom</span>,
+  <span class="field">title</span>={UniCustom: Unified Visual Conditioning for Multi-Reference Image Generation},
+  <span class="field">author</span>={Xu, Yiyan and Wang, Qiulin and Wang, Wenjie and Mao, Yunyao and Wang, Xintao and Wan, Pengfei and Gai, Kun and Feng, Fuli},
+  <span class="field">booktitle</span>={arXiv preprint arXiv:xxx},
+  <span class="field">year</span>={<span class="val">2026</span>}
+<span class="kw">}</span></pre>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <h3>Disclaimer</h3>
+    <p>This project is open-sourced for academic research purposes. This disclaimer is adapted with reference to the <a href="https://bytedance.github.io/UNO/" target="_blank" rel="noopener noreferrer">UNO project page</a>. The vast majority of images used in this project are either generated or properly licensed. If you have any concerns, please contact us at <a href="mailto:yiyanxu24@gmail.com">yiyanxu24@gmail.com</a>, and we will promptly remove any content deemed inappropriate. This research aims to contribute to the advancement of generative AI. Users may create images with this tool, provided that they comply with applicable local laws and use it responsibly. The developers disclaim any liability for misuse of the tool by users.</p>
+  </div>
+</footer>
+
+<script>
+  /* Scroll-reveal */
+  const io = new IntersectionObserver(entries =>
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } }),
+    { threshold: 0.07 }
+  );
+  document.querySelectorAll('.fade-in').forEach(el => io.observe(el));
+
+  /* Seamless case galleries */
+  let caseGalleryAnimation = null;
+  let caseGalleryResizeTimer = null;
+
+  function setupCaseGalleries() {
+    const states = [];
+    document.querySelectorAll('.case-gallery-row').forEach(row => {
+      let baseTrack = row.querySelector('.case-track:not(.case-track-clone)');
+      if (!baseTrack) return;
+
+      row.querySelectorAll('.case-track-clone').forEach(clone => clone.remove());
+
+      const cards = Array.from(baseTrack.querySelectorAll(':scope > .case-card'));
+      if (cards.length > 9) cards.slice(9).forEach(card => card.remove());
+
+      baseTrack = row.querySelector('.case-track:not(.case-track-clone)');
+      const cloneTrack = baseTrack.cloneNode(true);
+      cloneTrack.classList.add('case-track-clone');
+      cloneTrack.setAttribute('aria-hidden', 'true');
+      row.appendChild(cloneTrack);
+
+      const distance = Array.from(baseTrack.querySelectorAll(':scope > .case-card')).reduce((sum, card) => {
+        const style = getComputedStyle(card);
+        return sum + card.getBoundingClientRect().width + parseFloat(style.marginRight || 0);
+      }, 0);
+      row.style.setProperty('--marquee-distance', `${distance}px`);
+      states.push({
+        row,
+        baseTrack,
+        cloneTrack,
+        distance,
+        direction: row.classList.contains('scroll-right') ? 1 : -1,
+        offset: 0,
+      });
+    });
+    startCaseGalleryAnimation(states);
+  }
+
+  function startCaseGalleryAnimation(states) {
+    if (caseGalleryAnimation) cancelAnimationFrame(caseGalleryAnimation);
+    let lastTime = performance.now();
+    const speed = 42;
+
+    function tick(now) {
+      const delta = (now - lastTime) / 1000;
+      lastTime = now;
+
+      states.forEach(state => {
+        if (!state.distance) return;
+        if (!state.row.matches(':hover')) {
+          state.offset = (state.offset + speed * delta) % state.distance;
+        }
+
+        if (state.direction < 0) {
+          state.baseTrack.style.transform = `translate3d(${-state.offset}px,0,0)`;
+          state.cloneTrack.style.transform = `translate3d(${-state.offset}px,0,0)`;
+        } else {
+          state.baseTrack.style.transform = `translate3d(${state.offset}px,0,0)`;
+          state.cloneTrack.style.transform = `translate3d(${state.offset}px,0,0)`;
+        }
+      });
+
+      caseGalleryAnimation = requestAnimationFrame(tick);
+    }
+
+    caseGalleryAnimation = requestAnimationFrame(tick);
+  }
+
+  setupCaseGalleries();
+  window.addEventListener('load', () => {
+    updateInputHoverFrames();
+  });
+  window.addEventListener('resize', () => {
+    clearTimeout(caseGalleryResizeTimer);
+    caseGalleryResizeTimer = setTimeout(() => {
+      setupCaseGalleries();
+      updateInputHoverFrames();
+    }, 120);
+  });
+
+  /* Adaptive input-image hover frames */
+  function updateInputHoverFrames() {
+    document.querySelectorAll('.input-tile').forEach(tile => {
+      const img = tile.querySelector('img');
+      const media = tile.closest('.case-media');
+      if (!img || !media || !img.naturalWidth || !img.naturalHeight) return;
+
+      tile.classList.remove('needs-wide', 'needs-tall');
+      const tileRect = tile.getBoundingClientRect();
+      const mediaRect = media.getBoundingClientRect();
+      const imageRatio = img.naturalWidth / img.naturalHeight;
+      const tileRatio = tileRect.width / tileRect.height;
+      const availableWidth = mediaRect.right - tileRect.left;
+      const availableHeight = mediaRect.height;
+
+      if (imageRatio > tileRatio * 1.08) {
+        const targetWidth = Math.min(tileRect.height * imageRatio, availableWidth);
+        if (targetWidth > tileRect.width * 1.08) {
+          tile.style.setProperty('--hover-w', `${targetWidth}px`);
+          tile.classList.add('needs-wide');
+        }
+      } else if (imageRatio < tileRatio / 1.08) {
+        const targetHeight = Math.min(tileRect.width / imageRatio, availableHeight);
+        if (targetHeight > tileRect.height * 1.08) {
+          tile.style.setProperty('--hover-h', `${targetHeight}px`);
+          tile.classList.add('needs-tall');
+        }
+      }
+    });
+  }
+  document.querySelectorAll('.input-tile img').forEach(img => {
+    if (img.complete) return;
+    img.addEventListener('load', updateInputHoverFrames, { once: true });
+  });
+
+  /* Copy BibTeX */
+  function copyBib() {
+    const raw = `@article{xu2026unicustom,
+  title={UniCustom: Unified Visual Conditioning for Multi-Reference Image Generation},
+  author={Xu, Yiyan and Wang, Qiulin and Wang, Wenjie and Mao, Yunyao and Wang, Xintao and Wan, Pengfei and Gai, Kun and Feng, Fuli},
+  booktitle={arXiv preprint arXiv:xxx},
+  year={2026}
+}`;
+    navigator.clipboard.writeText(raw).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      const original = btn.innerHTML;
+      btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+      setTimeout(() => btn.innerHTML = original, 2000);
+    });
+  }
+</script>
+
+</body>
+</html>
